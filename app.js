@@ -10,6 +10,9 @@ const loadingText = document.getElementById("loadingText");
 const errorBox = document.getElementById("error");
 const errorText = document.getElementById("errorText");
 const boneInfo = document.getElementById("boneInfo");
+const boneInfoEmpty = document.getElementById("boneInfoEmpty");
+const modelStatus = document.getElementById("modelStatus");
+const modelStatusText = document.getElementById("modelStatusText");
 const boneTooltip = document.getElementById("boneTooltip");
 
 const selectedName = document.getElementById("selectedName");
@@ -158,6 +161,8 @@ function renderBoneSearch(query = "") {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "bone-result";
+    button.dataset.meshIndex = String(meshes.indexOf(mesh));
+    button.setAttribute("aria-pressed", String(mesh === selectedBone));
     const label = document.createElement("span");
     label.textContent = getDisplayName(mesh.name || "Unnamed structure");
     const arrow = document.createElement("span");
@@ -277,15 +282,26 @@ function getBoneDescription(name) {
 }
 
 function updateSelectionPanel(mesh) {
+  boneSearchResults?.querySelectorAll(".bone-result").forEach((button) => {
+    button.setAttribute("aria-pressed", String(meshes[Number(button.dataset.meshIndex)] === mesh));
+  });
   if (!mesh) {
     selectedName.textContent = "No bone selected";
     boneInfo.hidden = true;
+    boneInfoEmpty.hidden = false;
     return;
   }
 
   selectedName.textContent = getDisplayName(mesh.name);
   boneDescription.textContent = getBoneDescription(mesh.name);
   boneInfo.hidden = false;
+  boneInfoEmpty.hidden = true;
+}
+
+function setModelStatus(state, label) {
+  if (!modelStatus) return;
+  modelStatus.dataset.state = state;
+  modelStatusText.textContent = label;
 }
 
 function applyHighlight(mesh) {
@@ -567,6 +583,7 @@ function activateModel(bundle) {
   configureCameraForBundle(bundle);
   loading.hidden = true;
   errorBox.hidden = true;
+  setModelStatus("ready", "Model ready");
 }
 loader.load(
   "./models/skeleton.glb",
@@ -584,6 +601,7 @@ loader.load(
     loading.hidden = true;
     errorBox.hidden = false;
     errorText.textContent = "Check that models/skeleton.glb exists and is named correctly. Check the browser console for details.";
+    setModelStatus("error", "Model unavailable");
   }
 );
 
@@ -612,10 +630,6 @@ renderer.domElement.addEventListener("pointerdown", (event) => {
 
 renderer.domElement.addEventListener("pointermove", (event) => {
   const rect = renderer.domElement.getBoundingClientRect();
-  const x = (event.clientX - rect.left) / rect.width - 0.5;
-  const y = (event.clientY - rect.top) / rect.height - 0.5;
-  viewer.style.setProperty("--parallax-x", `${x * 12}px`);
-  viewer.style.setProperty("--parallax-y", `${y * 12}px`);
   if (!skeleton || pointerStart || event.buttons) {
     boneTooltip.hidden = true;
     return;
@@ -641,8 +655,6 @@ renderer.domElement.addEventListener("pointermove", (event) => {
 });
 
 renderer.domElement.addEventListener("pointerleave", () => {
-  viewer.style.setProperty("--parallax-x", "0px");
-  viewer.style.setProperty("--parallax-y", "0px");
   updateHoveredBone(null);
   boneTooltip.hidden = true;
 });
